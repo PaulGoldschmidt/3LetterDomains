@@ -46,7 +46,7 @@ def load_previous_unclaimed_domains():
             return [line.strip() for line in file.readlines()]
     return []
 
-def main(filepaths):
+def main(filepaths, print_to_console=True):
     domains = read_domains_from_files(filepaths)
     credentials = load_credentials()
     token = credentials['telegram_token']
@@ -64,37 +64,44 @@ def main(filepaths):
 
     with open(log_filename, 'w') as log_file:
         for i, domain in enumerate(domains):
-            log_file.write(f'Checking domain: {domain}\n')
-            print(f'Checking domain: {domain}')
+            if print_to_console:
+                print(f'Checking domain: {domain}')
             dns_requests += 1
             if is_domain_available(domain):
-                log_file.write(f'No DNS records found for {domain}\n')
-                print(f'No DNS records found for {domain}')
+                if print_to_console:
+                    print(f'No DNS records found for {domain}')
                 if whois_requests > 0 and whois_requests % rate_limit == 0:
-                    print(f'Rate limiting: Waiting for {whois_interval} seconds...')
+                    if print_to_console:
+                        print(f'Rate limiting: Waiting for {whois_interval} seconds...')
                     time.sleep(whois_interval)
                 if not check_whois(domain):
                     whois_requests += 1
-                    log_file.write(f'Domain is unclaimed: {domain}\n')
-                    print(f'Domain is unclaimed: {domain}')
+                    if print_to_console:
+                        print(f'Domain is unclaimed: {domain}')
                     unclaimed_domains.append(domain)
                     if domain not in previous_unclaimed_domains:
                         send_telegram_message(token, chat_id, f'New unclaimed domain: {domain}')
                 else:
                     whois_requests += 1
                     log_file.write(f'Domain is claimed (WHOIS): {domain}\n')
-                    print(f'Domain is claimed (WHOIS): {domain}')
+                    if print_to_console:
+                        print(f'Domain is claimed (WHOIS): {domain}')
             else:
                 log_file.write(f'Domain is claimed (DNS): {domain}\n')
-                print(f'Domain is claimed (DNS): {domain}')
+                if print_to_console:
+                    print(f'Domain is claimed (DNS): {domain}')
 
             elapsed_time = time.time() - start_time
             estimated_total_time = (elapsed_time / (i + 1)) * len(domains)
             elapsed_time = time.time() - start_time
             estimated_total_time = (elapsed_time / (i + 1)) * len(domains)
             remaining_time = estimated_total_time - elapsed_time
+            percentage_done = ((i + 1) / len(domains)) * 100
 
-            print(f'Estimated remaining time: {remaining_time:.2f} seconds')
+            if print_to_console:
+                print(f'Elapsed time: {elapsed_time:.2f} seconds')
+                print(f'Estimated remaining time: {remaining_time:.2f} seconds')
+                print(f'Percentage of domains tried: {percentage_done:.2f}%')
 
     with open('unclaimed_domains.txt', 'w') as unclaimed_file:
         for domain in unclaimed_domains:
@@ -104,20 +111,24 @@ def main(filepaths):
     execution_length = end_time - start_time
     median_requests_per_minute = (dns_requests + whois_requests) / (execution_length / 60)
 
-    print(f'\nDNS Requests: {dns_requests}')
-    print(f'WHOIS Requests: {whois_requests}')
-    print(f'Execution length: {execution_length:.2f} seconds')
-    print(f'Median requests per minute: {median_requests_per_minute:.2f}')
-
     with open(log_filename, 'a') as log_file:
         log_file.write(f'\nDNS Requests: {dns_requests}\n')
         log_file.write(f'WHOIS Requests: {whois_requests}\n')
         log_file.write(f'Execution length: {execution_length:.2f} seconds\n')
         log_file.write(f'Median requests per minute: {median_requests_per_minute:.2f}\n')
 
+    if print_to_console:
+        print(f'\nDNS Requests: {dns_requests}')
+        print(f'WHOIS Requests: {whois_requests}')
+        print(f'Execution length: {execution_length:.2f} seconds')
+        print(f'Median requests per minute: {median_requests_per_minute:.2f}')
+
 if __name__ == '__main__':
-    if len(sys.argv) < 2:
-        print('Usage: python check_domains.py <file1> [<file2> ...]')
+    filepaths = [arg for arg in sys.argv[1:] if arg != '--quiet']
+
+    if not filepaths:
+        print('Usage: python check_domains.py <file1> [<file2> ...] [--quiet]')
         sys.exit(1)
 
-    main(sys.argv[1:])
+    print_to_console = '--quiet' not in sys.argv
+    main(filepaths, print_to_console)
