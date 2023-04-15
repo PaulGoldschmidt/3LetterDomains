@@ -74,35 +74,35 @@ To run the script regularly using a cronjob, follow these steps:
 
 1. Ensure that the script is executable. In the terminal, navigate to the directory containing the script and run:
 
-   §§§bash
+   ```bash
    chmod +x check_domains.py
-   §§§
+   ```
 
 2. Open the crontab configuration file for the current user by running:
 
-   §§§bash
+   ```bash
    crontab -e
-   §§§
+   ```
 
 3. Add a new line to the end of the file with the following format:
 
-   §§§bash
+   ```bash
    * * * * * /path/to/python3 /path/to/check_domains.py /path/to/input_file1.txt [ /path/to/input_file2.txt ...] [--quiet]
-   §§§
+   ```
 
    Replace `/path/to/python3` with the path to your Python 3 executable (use `which python3` command to find the path), `/path/to/check_domains.py` with the path to the script, and `/path/to/input_file1.txt` with the path to your input file(s). Add additional input files separated by spaces if needed.
 
    The `* * * * *` part represents the cron schedule. Adjust these values to set the desired frequency of script execution. For example, to run the script every day at midnight, use:
 
-   §§§bash
+   ```bash
    0 0 * * * /path/to/python3 /path/to/check_domains.py /path/to/input_file1.txt [ /path/to/input_file2.txt ...] [--quiet]
-   §§§
+   ```
 
    To run the script every hour, use:
 
-   §§§bash
+   ```bash
    0 * * * * /path/to/python3 /path/to/check_domains.py /path/to/input_file1.txt [ /path/to/input_file2.txt ...] [--quiet]
-   §§§
+   ```
 
 4. Save and exit the crontab configuration file.
 
