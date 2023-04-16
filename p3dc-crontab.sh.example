@@ -1,0 +1,3 @@
+# Crontab Script to set the execution pointer to the right place
+cd /your/script/folder/
+python3 check_domains.py example_lists/de_twoletterdomains.txt example_lists/de_threeletterdomains.txt example_lists/com_threeletterdomains.txt --quiet
