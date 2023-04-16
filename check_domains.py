@@ -33,13 +33,16 @@ def send_telegram_message(token, chat_id, message):
     response = requests.post(url, data=payload)
     return response.status_code == 200
 
-def send_initial_telegram_message(token, chat_id, filepaths, total_domains, total_unclaimed_domains, machine_info):
-    message = f'<b>Domain Check Started</b>\n\n'
+def send_initial_telegram_message(token, chat_id, filepaths, total_domains, machine_info):
+    message = f'<b>Domain Check Started for </b>\n\n'
     message += f'Files to check ({len(filepaths)}):\n'
+    countdomainstemp = 0
     for filepath in filepaths:
         message += f'- {os.path.basename(filepath)}\n'
+        with open(filepath, 'r') as f:
+            countdomainstemp = [line.strip() for line in f.readlines()]
+            total_domains = total_domains + len(countdomainstemp)
     message += f'\nTotal domains to check: {total_domains}\n'
-    message += f'\nTotal unclaimed domains from the last run: {total_unclaimed_domains}\n'
     message += f'\nMachine info:\n{machine_info}'
 
     send_telegram_message(token, chat_id, message)
@@ -63,26 +66,23 @@ def main(filepaths, print_to_console=True):
     dns_checked_domains = 0
     whois_checked_domains = 0
     start_time = time.time()
-
+    total_domains = 0
+    send_initial_telegram_message(telegram_token, telegram_chat_id, filepaths, total_domains, machine_info)
+    
     for filepath in filepaths:
         previous_unclaimed_domains = []
         result_filename = f'unclaimed_{os.path.splitext(os.path.basename(filepath))[0]}.txt'
 
         previous_result_filename = f'unclaimed_{os.path.splitext(os.path.basename(filepath))[0]}.txt'
         previous_result_files = sorted(glob.glob(os.path.join('results', previous_result_filename)))
-        total_unclaimed_domains = 0
 
         if previous_result_files:
             with open(previous_result_files[-1], 'r') as f:
                 previous_unclaimed_domains = [line.strip() for line in f.readlines()]
-            total_unclaimed_domains += len(previous_unclaimed_domains)
 
         unclaimed_domains = []
-        
         with open(filepath, 'r') as f:
             domains = [line.strip() for line in f.readlines()]
-        total_domains = len(domains)
-        send_initial_telegram_message(telegram_token, telegram_chat_id, filepaths, total_domains, total_unclaimed_domains, machine_info)
 
         unclaimed_file = open(os.path.join('results', result_filename), 'w')
 
