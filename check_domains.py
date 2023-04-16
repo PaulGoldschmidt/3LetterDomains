@@ -1,3 +1,4 @@
+# P3DC - 16th of April, 2023 - Paul Goldschmidt | Version 1.3
 import argparse
 import dns.resolver
 import glob
@@ -32,12 +33,25 @@ def send_telegram_message(token, chat_id, message):
     response = requests.post(url, data=payload)
     return response.status_code == 200
 
+def send_initial_telegram_message(token, chat_id, filepaths, total_domains, total_unclaimed_domains, machine_info):
+    message = f'<b>Domain Check Started</b>\n\n'
+    message += f'Files to check ({len(filepaths)}):\n'
+    for filepath in filepaths:
+        message += f'- {os.path.basename(filepath)}\n'
+    message += f'\nTotal domains to check: {total_domains}\n'
+    message += f'\nTotal unclaimed domains from the last run: {total_unclaimed_domains}\n'
+    message += f'\nMachine info:\n{machine_info}'
+
+    send_telegram_message(token, chat_id, message)
 
 def main(filepaths, print_to_console=True):
     with open('credentials.json', 'r') as f:
         credentials = json.load(f)
         telegram_token = credentials['telegram_token']
         telegram_chat_id = credentials['telegram_chat_id']
+        total_domains = sum([len(domains) for domains in filepaths])
+        machine_info = f'{platform.system()} {platform.release()} ({platform.version()})'
+
 
     if not os.path.exists('logs'):
         os.makedirs('logs')
@@ -57,13 +71,18 @@ def main(filepaths, print_to_console=True):
 
         previous_result_filename = f'unclaimed_{os.path.splitext(os.path.basename(filepath))[0]}.txt'
         previous_result_files = sorted(glob.glob(os.path.join('results', previous_result_filename)))
+        total_unclaimed_domains = 0
+
         if previous_result_files:
             with open(previous_result_files[-1], 'r') as f:
                 previous_unclaimed_domains = [line.strip() for line in f.readlines()]
+            total_unclaimed_domains += len(previous_unclaimed_domains)
 
         unclaimed_domains = []
+        
         with open(filepath, 'r') as f:
             domains = [line.strip() for line in f.readlines()]
+        send_initial_telegram_message(telegram_token, telegram_chat_id, filepaths, total_domains, total_unclaimed_domains, machine_info)
 
         unclaimed_file = open(os.path.join('results', result_filename), 'w')
 
@@ -133,7 +152,7 @@ def main(filepaths, print_to_console=True):
     log_file.write(f'Execution time: {execution_time:.2f}s\n')
     log_file.write(f'Median domains checked per minute: {median_domains_per_minute:.2f}\n')
     log_file.write(f'Machine info: {platform.uname()}\n')
-    log_file.write(f'Script version: 1.0.0\n')
+    log_file.write(f'Script version: 1.3.0\n')
 
     log_file.close()
 
