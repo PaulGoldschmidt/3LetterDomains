@@ -34,16 +34,16 @@ def send_telegram_message(token, chat_id, message):
     return response.status_code == 200
 
 def send_initial_telegram_message(token, chat_id, filepaths, total_domains, machine_info):
-    message = f'<b>Domain Check Started for </b>\n\n'
-    message += f'Files to check ({len(filepaths)}):\n'
+    message = f'<b>📝 Domain Check Started!</b>\n\n'
+    message += f'<b>📂 Files to check ({len(filepaths)}):</b> \n'
     countdomainstemp = 0
     for filepath in filepaths:
         message += f'- {os.path.basename(filepath)}\n'
         with open(filepath, 'r') as f:
             countdomainstemp = [line.strip() for line in f.readlines()]
             total_domains = total_domains + len(countdomainstemp)
-    message += f'\nTotal domains to check: {total_domains}\n'
-    message += f'\nMachine info:\n{machine_info}'
+    message += f'\n<b>☝️ Total domains to check:</b> {total_domains}\n'
+    message += f'\n<b>🤖 Machine info:</b>\n{machine_info}'
 
     send_telegram_message(token, chat_id, message)
 
@@ -130,7 +130,7 @@ def main(filepaths, print_to_console=True):
 
         new_unclaimed_domains = list(set(unclaimed_domains) - set(previous_unclaimed_domains))
         if new_unclaimed_domains:
-            message = f'New unclaimed domains:\n\n'
+            message = f'✨ New unclaimed domains:\n\n'
             message += '\n'.join(new_unclaimed_domains)
             send_telegram_message(telegram_token, telegram_chat_id, message)
 
