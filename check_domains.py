@@ -49,7 +49,6 @@ def main(filepaths, print_to_console=True):
         credentials = json.load(f)
         telegram_token = credentials['telegram_token']
         telegram_chat_id = credentials['telegram_chat_id']
-        total_domains = sum([len(domains) for domains in filepaths])
         machine_info = f'{platform.system()} {platform.release()} ({platform.version()})'
 
 
@@ -82,6 +81,7 @@ def main(filepaths, print_to_console=True):
         
         with open(filepath, 'r') as f:
             domains = [line.strip() for line in f.readlines()]
+        total_domains = len(domains)
         send_initial_telegram_message(telegram_token, telegram_chat_id, filepaths, total_domains, total_unclaimed_domains, machine_info)
 
         unclaimed_file = open(os.path.join('results', result_filename), 'w')
