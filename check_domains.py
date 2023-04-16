@@ -89,14 +89,13 @@ def main(filepaths, print_to_console=True):
         for i, domain in enumerate(domains):
             if print_to_console:
                 print(f'Checking domain: {domain}')
-
+            dns_checked_domains += 1
             if is_domain_available(domain):
-                dns_checked_domains += 1
                 if domain not in previous_unclaimed_domains:
                     try:
+                        whois_checked_domains += 1
                         domain_info = whois(domain)
                         time.sleep(6)
-                        whois_checked_domains += 1
 
                         if domain_info.status is None:
                             unclaimed_domains.append(domain)
