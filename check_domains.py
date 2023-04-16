@@ -7,6 +7,8 @@ import dns.resolver
 import whois
 import requests
 import argparse
+import platform
+import glob
 
 
 def is_domain_available(domain):
@@ -29,7 +31,15 @@ def send_telegram_message(token, chat_id, message):
     requests.post(url, data=payload)
 
 
+def rotate_logs():
+    log_files = sorted(glob.glob('log_*.log'))
+    while len(log_files) > 30:
+        os.remove(log_files.pop(0))
+
+
 def main(filepaths, print_to_console=True):
+    rotate_logs()
+
     with open('credentials.json', 'r') as f:
         credentials = json.load(f)
 
@@ -58,27 +68,23 @@ def main(filepaths, print_to_console=True):
     for i, domain in enumerate(domains):
         if print_to_console:
             print(f'Checking domain {i + 1}/{len(domains)}: {domain}')
+        dns_checked_domains += 1
 
         if is_domain_available(domain) and domain not in previous_unclaimed_domains:
             try:
-                domain_info = whois.whois(domain)
                 whois_checked_domains += 1
-                time.sleep(6)  # Rate limit: 10 requests per minute
+                time.sleep(1)  # Rate limit: 60 requests per minute
+                domain_info = whois.whois(domain)
 
                 if domain_info.status is None:
                     unclaimed_domains.append(domain)
-                    log_file.write(f'Domain is unclaimed: {domain}\n')
                     unclaimed_file.write(f'{domain}\n')
-                else:
-                    log_file.write(f'Domain is claimed (WHOIS): {domain}\n')
-
             except Exception as e:
-                log_file.write(f'Error checking domain (WHOIS): {domain} - {str(e)}\n')
                 if print_to_console:
                     print(f'Error checking domain (WHOIS): {domain} - {str(e)}')
-        else:
-            dns_checked_domains += 1
-            #log_file.write(f'Domain is claimed (DNS): {domain}\n')
+                log_file.write(f'Error checking domain (WHOIS): {domain} - {str(e)}\n')
+                unclaimed_domains.append(domain)
+                unclaimed_file.write(f'{domain}\n')
 
         elapsed_time = time.time() - start_time
         estimated_total_time = (elapsed_time / (i + 1)) * len(domains)
@@ -88,21 +94,30 @@ def main(filepaths, print_to_console=True):
             print(f'Elapsed time: {elapsed_time:.2f}s - Estimated total time: {estimated_total_time:.2f}s - Remaining time: {remaining_time:.2f}s')
             print(f'Progress: {((i + 1) / len(domains)) * 100:.2f}%')
 
-    log_file.write(f'DNS checked domains: {dns_checked_domains}\n')
-    log_file.write(f'WHOIS checked domains: {whois_checked_domains}\n')
+    end_time = time.time()
+    execution_time = end_time - start_time
+    median_domains_per_minute = len(domains) / (execution_time / 60)
 
-    if os.path.exists('unclaimed_domains.txt'):
-        with open('unclaimed_domains.txt', 'r') as f:
-            previous_unclaimed_domains = [line.strip() for line in f.readlines()]
+    log_file.write(f'Start time: {datetime.fromtimestamp(start_time).strftime("%Y-%m-%d %H:%M:%S")}\n')
+    log_file.write(f'End time: {datetime.fromtimestamp(end_time).strftime("%Y-%m-%d %H:%M:%S")}\n')
+    log_file.write(f'Execution time: {execution_time:.2f}s\n')
+    log_file.write(f'Domains tried (DNS): {dns_checked_domains}\n')
+    log_file.write(f'Domains tried (WHOIS): {whois_checked_domains}\n')
+    log_file.write(f'Median domains checked per minute: {median_domains_per_minute:.2f}\n')
 
+    log_file.write(f'Python version: {platform.python_version()}\n')
+    log_file.write(f'System: {platform.system()} {platform.release()} {platform.version()}\n')
+    log_file.write(f'Machine: {platform.machine()} {platform.processor()}\n')
+
+    log_file.close()
+    unclaimed_file.close()
+
+    if previous_unclaimed_domains and unclaimed_domains:
         new_unclaimed_domains = list(set(unclaimed_domains) - set(previous_unclaimed_domains))
 
         if new_unclaimed_domains:
             message = 'New unclaimed domains found:\n\n' + '\n'.join(new_unclaimed_domains)
             send_telegram_message(telegram_token, telegram_chat_id, message)
-
-    log_file.close()
-    unclaimed_file.close()
 
 
 if __name__ == '__main__':

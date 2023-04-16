@@ -1,5 +1,5 @@
 ![Domain Availability Checker](https://media1.giphy.com/media/B7o99rIuystY4/giphy.gif)
-# P3DomainChecker: Test for claimed domains and get the domain name of your dreams :stars:
+# P3DomainChecker (P3DC): Test for claimed domains and get the domain name of your dreams :stars:
 This Python script checks if a list of domains read from one or more external files are claimed or unclaimed. It uses DNS lookups and the whois library to perform the checks and creates a detailed log file with the current date of execution. All unclaimed domains are written to a separate file as plain text. Both files only contain the contents of the last execution. The script also integrates with Telegram to send notifications for newly available domains.
 
 ## Disclaimer
