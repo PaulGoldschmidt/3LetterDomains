@@ -1,14 +1,15 @@
-import sys
-import os
+import argparse
+import dns.resolver
+import glob
 import json
+import os
+import platform
+import requests
+import sys
 import time
 from datetime import datetime
-import dns.resolver
-import whois
-import requests
-import argparse
-import platform
-import glob
+from whois import whois
+from whois.parser import PywhoisError
 
 
 def is_domain_available(domain):
@@ -26,77 +27,99 @@ def send_telegram_message(token, chat_id, message):
     payload = {
         'chat_id': chat_id,
         'text': message,
-        'parse_mode': 'Markdown',
+        'parse_mode': 'HTML'
     }
-    requests.post(url, data=payload)
-
-
-def rotate_logs():
-    log_files = sorted(glob.glob(os.path.join('logs', 'log_*.log')))
-    while len(log_files) > 30:
-        os.remove(log_files.pop(0))
+    response = requests.post(url, data=payload)
+    return response.status_code == 200
 
 
 def main(filepaths, print_to_console=True):
-    if not os.path.exists('logs'):
-        os.makedirs('logs')
-
-    rotate_logs()
-
     with open('credentials.json', 'r') as f:
         credentials = json.load(f)
+        telegram_token = credentials['telegram_token']
+        telegram_chat_id = credentials['telegram_chat_id']
 
-    telegram_token = credentials['telegram_token']
-    telegram_chat_id = credentials['telegram_chat_id']
+    if not os.path.exists('logs'):
+        os.makedirs('logs')
+    if not os.path.exists('results'):
+        os.makedirs('results')
 
-    domains = []
-    for filepath in filepaths:
-        with open(filepath, 'r') as f:
-            domains += [line.strip() for line in f.readlines()]
+    log_filename = f'logs/{datetime.now().strftime("%Y%m%d_%H%M%S")}.log'
+    log_file = open(log_filename, 'w')
 
-    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-    log_file = open(os.path.join('logs', f'log_{timestamp}.log'), 'w')
-    unclaimed_file = open('unclaimed_domains.txt', 'w')
-
-    start_time = time.time()
     dns_checked_domains = 0
     whois_checked_domains = 0
-    unclaimed_domains = []
+    start_time = time.time()
 
-    previous_unclaimed_domains = []
-    if os.path.exists('unclaimed_domains.txt'):
-        with open('unclaimed_domains.txt', 'r') as f:
-            previous_unclaimed_domains = [line.strip() for line in f.readlines()]
+    for filepath in filepaths:
+        previous_unclaimed_domains = []
+        result_filename = f'unclaimed_{os.path.splitext(os.path.basename(filepath))[0]}.txt'
 
-    for i, domain in enumerate(domains):
-        if print_to_console:
-            print(f'Checking domain {i + 1}/{len(domains)}: {domain}')
+        previous_result_filename = f'unclaimed_{os.path.splitext(os.path.basename(filepath))[0]}.txt'
+        previous_result_files = sorted(glob.glob(os.path.join('results', previous_result_filename)))
+        if previous_result_files:
+            with open(previous_result_files[-1], 'r') as f:
+                previous_unclaimed_domains = [line.strip() for line in f.readlines()]
 
-        if is_domain_available(domain) and domain not in previous_unclaimed_domains:
-            try:
-                domain_info = whois.whois(domain)
-                whois_checked_domains += 1
-                time.sleep(6)  # Rate limit: 10 requests per minute
+        unclaimed_domains = []
+        with open(filepath, 'r') as f:
+            domains = [line.strip() for line in f.readlines()]
 
-                if domain_info.status is None:
+        unclaimed_file = open(os.path.join('results', result_filename), 'w')
+
+        for i, domain in enumerate(domains):
+            if print_to_console:
+                print(f'Checking domain: {domain}')
+
+            if is_domain_available(domain):
+                dns_checked_domains += 1
+                if domain not in previous_unclaimed_domains:
+                    try:
+                        domain_info = whois(domain)
+                        time.sleep(6)
+                        whois_checked_domains += 1
+
+                        if domain_info.status is None:
+                            unclaimed_domains.append(domain)
+                            unclaimed_file.write(f'{domain}\n')
+
+                            if print_to_console:
+                                print(f'Domain is unclaimed: {domain}')
+                        else:
+                            log_file.write(f'Domain is claimed (WHOIS): {domain}\n')
+
+                    except PywhoisError as e:
+                        log_file.write(f'Error (WHOIS): {domain}, {e}\n')
+                        unclaimed_domains.append(domain)
+                        unclaimed_file.write(f'{domain}\n')
+
+                    except Exception as e:
+                        log_file.write(f'Error (WHOIS): {domain}, {e}\n')
+                        unclaimed_domains.append(domain)
+                        unclaimed_file.write(f'{domain}\n')
+
+                else:
                     unclaimed_domains.append(domain)
                     unclaimed_file.write(f'{domain}\n')
-            except Exception as e:
-                if print_to_console:
-                    print(f'Error checking domain (WHOIS): {domain} - {str(e)}')
-                log_file.write(f'Error checking domain (WHOIS): {domain} - {str(e)}\n')
-                unclaimed_domains.append(domain)
-                unclaimed_file.write(f'{domain}\n')
-        else:
-            dns_checked_domains += 1
 
-        elapsed_time = time.time() - start_time
-        estimated_total_time = (elapsed_time / (i + 1)) * len(domains)
-        remaining_time = estimated_total_time - elapsed_time
+            elapsed_time = time.time() - start_time
+            estimated_total_time = (elapsed_time / (i + 1)) * len(domains)
+            remaining_time = estimated_total_time - elapsed_time
+            if print_to_console:
+                print(f'Progress: {((i + 1) / len(domains)) * 100:.2f}%, Elapsed time: {elapsed_time:.2f}s, Remaining time: {remaining_time:.2f}s')
+
+        unclaimed_file.close()
+
+        new_unclaimed_domains = list(set(unclaimed_domains) - set(previous_unclaimed_domains))
+        if new_unclaimed_domains:
+            message = f'New unclaimed domains:\n\n'
+            message += '\n'.join(new_unclaimed_domains)
+            send_telegram_message(telegram_token, telegram_chat_id, message)
 
         if print_to_console:
-            print(f'Elapsed time: {elapsed_time:.2f}s - Estimated total time: {estimated_total_time:.2f}s - Remaining time: {remaining_time:.2f}s')
-            print(f'Progress: {((i + 1) / len(domains)) * 100:.2f}%')
+            print(f'\nFinished checking {len(domains)} domains for file {filepath}.')
+            print(f'DNS checked domains: {dns_checked_domains}')
+            print(f'WHOIS checked domains: {whois_checked_domains}')
 
     end_time = time.time()
     execution_time = end_time - start_time
@@ -113,18 +136,8 @@ def main(filepaths, print_to_console=True):
     log_file.write(f'Script version: 1.0.0\n')
 
     log_file.close()
-    unclaimed_file.close()
-
-    new_unclaimed_domains = list(set(unclaimed_domains) - set(previous_unclaimed_domains))
-    if new_unclaimed_domains:
-        message = f'New unclaimed domains:\n\n'
-        message += '\n'.join(new_unclaimed_domains)
-        send_telegram_message(telegram_token, telegram_chat_id, message)
 
     if print_to_console:
-        print(f'\nFinished checking {len(domains)} domains.')
-        print(f'DNS checked domains: {dns_checked_domains}')
-        print(f'WHOIS checked domains: {whois_checked_domains}')
         print(f'Execution time: {execution_time:.2f}s')
         print(f'Median domains checked per minute: {median_domains_per_minute:.2f}')
 
