@@ -29,7 +29,7 @@ During execution, the script estimates the remaining time and provides elapsed t
 pip install -r requirements.txt
 ```
 
-## How to use
+## How to use (self-installed, recommended)
 
 1. Create a credentials.json file in the same directory as the script with your Telegram bot token and chat ID, formatted as follows:
 
@@ -52,7 +52,7 @@ python check_domains.py input_file1.txt [input_file2.txt ...] [--quiet]
 
 5. Check the log file and unclaimed_domains.txt file for results.
 
-## Example
+### Example
 
 Assuming you have a file domains.txt with the following content:
 
@@ -108,4 +108,10 @@ To run the script regularly using a cronjob, follow these steps:
 
 The script will now execute according to the schedule you defined in the cronjob. Note that if you want to disable console output, include the `--quiet` flag at the end of the command.
 
+### Example Script
+
 There is also a [bash example script](p3dc-crontab.sh.example) given that you can run via the crontab instead of the script directly, if you have trouble with the environment variable (crontab has a different environment variable than your local user) not pointing to the correct directory.
+
+## Prebuild executable
+
+You can find an prebuild executable in the GitHub-Actions-Tab of this Repository. There will be an executable to download at the "artifacts"-section of the corresponding Workflow. Use this is at your own risk, I would strongly recommend to use the program directly in python, the installation for that should be straight-foreward.
