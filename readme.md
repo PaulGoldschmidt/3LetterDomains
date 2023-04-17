@@ -107,3 +107,5 @@ To run the script regularly using a cronjob, follow these steps:
 4. Save and exit the crontab configuration file.
 
 The script will now execute according to the schedule you defined in the cronjob. Note that if you want to disable console output, include the `--quiet` flag at the end of the command.
+
+There is also a [bash example script](p3dc-crontab.sh.example) given that you can run via the crontab instead of the script directly, if you have trouble with the environment variable (crontab has a different environment variable than your local user) not pointing to the correct directory.
