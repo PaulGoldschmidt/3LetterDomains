@@ -112,6 +112,20 @@ The script will now execute according to the schedule you defined in the cronjob
 
 There is also a [bash example script](p3dc-crontab.sh.example) given that you can run via the crontab instead of the script directly, if you have trouble with the environment variable (crontab has a different environment variable than your local user) not pointing to the correct directory.
 
-## Prebuild executable
+## Prebuild executable (less reliable)
 
 You can find an prebuild executable in the GitHub-Actions-Tab of this Repository. There will be an executable to download at the "artifacts"-section of the corresponding Workflow. Use this is at your own risk, I would strongly recommend to use the program directly in python, the installation for that should be straight-foreward.
+
+Once you've downloaded and extracted the executable from the GitHub Actions artifact, follow these steps to use it:
+
+1. **Locate the executable**: The executable will be in the extracted folder from the downloaded ZIP file. It will have the same name as your Python script but without the `.py` extension. For example, if your script is named `check_domains.py`, the executable will be named `check_domains` on Linux or macOS, and `check_domains.exe` on Windows.
+
+2. **Move the executable to the desired location**: If needed, move the executable file to a directory where you'd like to run it from.
+
+3. **Run the executable**:
+
+   - **Windows**: Double-click the `check_domains.exe` file to run it. Alternatively, you can run it from the Command Prompt or PowerShell by navigating to the directory containing the executable and typing `.\check_domains.exe` followed by pressing Enter.
+   
+   - **Linux or macOS**: Open a terminal, navigate to the directory containing the executable file, and run the following command: `./check_domains`. This will execute the program. Note that you may need to grant execute permissions to the file by running `chmod +x check_domains` before running it.
+
+The executable will run your Python script without requiring a Python installation or any external dependencies, as they are bundled within the executable. The script behavior should be the same as running the original Python script with a Python interpreter.
